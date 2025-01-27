@@ -118,7 +118,7 @@ This is ideal if you want to **manually** practice or demonstrate the Knight’s
 
 - Implements the classic **Warnsdorff** strategy:  
 - Always move the knight to the square from which the knight has the **fewest** onward moves.  
-- Often finds complete tours on many boards **quickly** and efficiently.  
+- Often finds complete tours on many boards **quickly**, mainly efficiently with smaller boards.  
 - Results in a near-perfect or perfect coverage in many cases.
 
 ### Mode 4: MCTS vs. Warnsdorff
