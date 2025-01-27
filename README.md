@@ -134,7 +134,7 @@ This is ideal if you want to **manually** practice or demonstrate the Knight’s
 
 ### Mode 6: Brute Force (Backtracking)
 
-- **NEW** mode that uses a **depth-first search (DFS)** or **backtracking** method.  
+- mode that uses a **depth-first search (DFS)** or **backtracking** method.  
 - Tries **all possible** moves from each position.  
 - If the knight visits all free squares, you get a **complete** tour.  
 - Very **time-consuming** for large boards but guarantees a correct solution if one exists.
