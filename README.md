@@ -11,7 +11,7 @@ This repository contains a **Knight’s Tour** program with multiple **game mode
 
 ## What Is the Knight’s Tour?
 
-The Knight’s Tour is a classic puzzle where a **knight** (as in chess) must visit every square on the board **exactly once**, following the knight’s \(L\)-shaped movement rules. For an nXn board, the puzzle is to find a path of length \(n^2\) that covers every cell without repetition. Obstacles can be introduced to complicate the path further.
+The Knight’s Tour is a classic puzzle where a **knight** (as in chess) must visit every square on the board **exactly once**, following the knight’s \(L\)-shaped movement rules. For an nXn board, the puzzle is to find the longest path possible in a spacific boared where Obstacles can be introduced to complicate the path further.
 
 ## Table of Contents
 
