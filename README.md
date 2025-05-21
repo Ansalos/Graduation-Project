@@ -10,6 +10,8 @@ This repository contains a **Knight’s Tour** program with multiple **game mode
 6. **Brute Force / Backtracking** (optional extra)
 7. **Self-Play Reinforcement Training** (Neural Network)  
 8. **AlphaZero-Inspired PUCT Agent with Neural Network**
+9. **Rule-Based Heuristic Player** (No Neural Network)
+
 
 ## What Is the Knight’s Tour?
 
@@ -28,7 +30,8 @@ The Knight’s Tour is a classic puzzle where a **knight** (as in chess) must vi
    - [Mode 5: Q-Learning](#mode-5-q-learning)  
    - [Mode 6: Brute Force (Backtracking)](#mode-6-brute-force-backtracking)  
    - [Mode 7: Self-Play Reinforcement Training](#mode-7-self-play-reinforcement-training)  
-   - [Mode 8: AlphaZero-Style PUCT Agent](#mode-8-alphazero-style-puct-agent-neural-network--mcts)  
+   - [Mode 8: AlphaZero-Style PUCT Agent](#mode-8-alphazero-style-puct-agent-neural-network--mcts)
+   - [Mode 9: Rule-Based Heuristic Player](#mode-9-rule-based-heuristic-player)
 5. [Future Enhancements](#future-enhancements)
 ---
 
@@ -45,6 +48,7 @@ The Knight’s Tour is a classic puzzle where a **knight** (as in chess) must vi
 - Supports optional logging of all decision data (Q, P, N, PUCT score, and Warnsdorff degree) to a CSV file.  
 
 - Includes the `Analyze_Decisions.py` script to extract interpretable heuristics from move logs using a decision tree classifier.
+- **Rule-Based Heuristic Player**: A neural-free AI mode that uses extracted decision-tree-based rules from previous PUCT simulations. It mimics learned patterns of strong play using lightweight, symbolic logic, making it interpretable and fast without relying on neural networks.
 
 ## Repository Structure
 
@@ -61,7 +65,9 @@ The Knight’s Tour is a classic puzzle where a **knight** (as in chess) must vi
 ├── NeuralNetworkClass.py            # PyTorch-based neural network policy/value model
 ├── SelfPlayAndTraining.py           # Self-play training routine
 ├── WarnsdorffAlgo.py                # Warnsdorff's algorithm implementation
-└── puct_decisions.csv               # CSV log generated during Mode 8 runs
+└── RuleBasedPUCTPlayer.py           # Mode 9: Rule-based heuristic logic without neural nets
+── knight_network.pt                 # Trained (10x10 board,10000 games) for PUCT agent (Mode 8)
+── puct_decisions.csv                # CSV log generated during Mode 8 runs
 ── Interpretable Neural Networks דוח הצעה.pdf
 ── Interpretable Neural Networks for Tackling Alpha Report.pdf
 ── README.md                         # This file
@@ -97,6 +103,9 @@ The Knight’s Tour is a classic puzzle where a **knight** (as in chess) must vi
 9. **Analyze_Decisions.py**  
    - Script for loading `puct_decisions.csv` and extracting decision rules using decision trees.
 
+10. **RuleBasedPUCTPlayer.py**  
+    - Implements **Mode 9**: A lightweight, interpretable player using symbolic decision-tree logic  
+    - Requires **no neural networks** or heavy dependencies; fast and transparent.
 ---
 
 ## Running the Program
@@ -119,6 +128,7 @@ The Knight’s Tour is a classic puzzle where a **knight** (as in chess) must vi
    6. Brute Force (Backtracking) Mode
    7. Self-Play Training (Reinforcement Learning)
    8. Play with Trained AlphaZero-like PUCT AI
+   9. PUCT with No Neural Net (Logic Only)        
    Enter the mode number:
    ```
 5. **Enter** a mode number. The program will prompt you for **board size**, **number of obstacles**, and **start position**.  
@@ -182,7 +192,17 @@ This is ideal if you want to **manually** practice or demonstrate the Knight’s
 - Optionally logs this data to a CSV for interpretability.  
 - Includes heatmaps for decision transparency.  
 - You can analyze logs using `Analyze_Decisions.py` to extract interpretable rules.
-  
+- The model file `knight_network.pt` was trained on **10x10 boards** using self-play reinforcement learning.  
+  It encodes policy (P) and value (V) predictions to guide MCTS decisions effectively.
+
+### Mode 9: Rule-Based Heuristic Player
+
+- Uses **interpretable decision rules** extracted from Mode 8’s move logs using decision tree classification.  
+- No neural network or MCTS needed – runs purely on symbolic rules derived from observed good behavior.  
+- Ideal for **fast and explainable** knight movement simulations.  
+- Lightweight and portable – can run without PyTorch or complex dependencies.  
+- Great for demonstrating how interpretable AI can replicate learned strategies with near-human transparency.
+
 ---
 
 ## Future Enhancements
