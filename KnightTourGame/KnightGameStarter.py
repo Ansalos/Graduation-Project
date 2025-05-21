@@ -3,6 +3,8 @@ from MCTSNode import MCTSNode
 from MCTSPlay import MCTSPlay
 from WarnsdorffAlgo import WarnsdorffsAlgorithm
 import copy
+import random
+import numpy as np
 
 
 
@@ -13,8 +15,14 @@ def main():
     print("2. MCTS Play (Machine-Controlled Tour)")
     print("3. Warnsdorff's Algorithm (Optimized Tour)")
     print("4. MCTS vs Warnsdorff's Algorithm on Same Board")
-    print("5. MCTS with Q-Learning Integration (AI-Enhanced Tour)")
+    print("5. Q_learning")
     print("6. Brute Force (Backtracking) Mode")
+    print("7. MCTS Self-Play + Training")
+    print("8. Play with Trained AlphaZero")
+
+
+    
+    
 
     mode = input("Enter the mode number: ")
 
@@ -189,21 +197,21 @@ def main():
 
         # Create a Q-Learning agent
         agent = QLearningAgent(
-            state_size = n * n,
-            action_size = len(game.moves),
+            state_size = 3 ** n,
+            action_size = 8,
             alpha = 0.1,      # learning rate
             gamma = 0.9,      # discount factor
             epsilon = 1.0     # initial epsilon (will be decayed below)
         )
 
         # Training hyperparameters
-        num_episodes = 1000
+        num_episodes = 10000
         max_steps_per_episode = n * n * 2  # a bit larger than the board size
 
         # Epsilon decay parameters
         initial_epsilon = 1.0
-        final_epsilon   = 0.01
-        decay_rate      = 0.99
+        final_epsilon   = 0.03
+        decay_rate      = 0.99995
 
         print("=== Q-Learning training starts... ===")
 
@@ -219,10 +227,12 @@ def main():
             visited_squares.add((game.x, game.y))
 
             total_reward = 0
+            all_twos_and_zeros = [0,0,0]
+            ones_exist = [0,0,0]
 
             for step_count in range(max_steps_per_episode):
                 # Current state
-                state = agent.get_state(game.x, game.y, n)
+                state, encode_arr = agent.get_state(game)
 
                 # Collect valid moves
                 valid_moves = []
@@ -241,7 +251,19 @@ def main():
                     break
 
                 # Choose an action via epsilon-greedy
-                action_index = agent.choose_action(state, valid_indices)
+                if step_count<5:
+                    action_index = agent.choose_action(state, valid_indices, 1)
+                else:
+                    action_index = agent.choose_action(state, valid_indices, agent.epsilon)
+
+                # For our statistics:
+                q_values = [agent.q_table[state, a] for a in valid_indices]
+                best_action_index = valid_indices[np.argmax(q_values)]
+                if 1 in encode_arr:
+                    ones_exist[encode_arr[best_action_index]] += 1
+                else:
+                    all_twos_and_zeros[encode_arr[best_action_index]] += 1
+
                 dx, dy = game.moves[action_index]
 
                 # Execute the move
@@ -254,11 +276,9 @@ def main():
                 if (nx, ny) not in visited_squares:
                     visited_squares.add((nx, ny))
                     reward = 3  # for example, +3 total
-                # else:
-                #     reward = 1  # for revisited squares, or you could use 0
 
                 # Next state
-                next_state = agent.get_state(nx, ny, n)
+                next_state, _ = agent.get_state(game)
 
                 # Next valid moves
                 next_valid_indices = []
@@ -271,20 +291,19 @@ def main():
                 agent.update(state, action_index, reward, next_state, next_valid_indices)
                 total_reward += reward
 
-            # (Optional) print progress every X episodes
+            # Print progress every X episodes
             if (episode + 1) % 50 == 0:
                 print(f"Episode {episode+1}/{num_episodes} | Epsilon={agent.epsilon:.3f}, Total Reward={total_reward}")
 
         print("=== Q-Learning training finished! ===")
 
         # B. Final Test Run with epsilon=0 (pure exploitation)
-        agent.epsilon = 0
         test_game = KnightGame(n, num_obstacles, start_x, start_y)
 
         print("\n=== Final Test Episode (Exploitation Only) ===")
         step_count = 0
         while True:
-            state = agent.get_state(test_game.x, test_game.y, n)
+            state, _ = agent.get_state(test_game)
 
             # Gather valid moves
             valid_moves = []
@@ -300,7 +319,7 @@ def main():
                 break
 
             # Choose best action (epsilon=0 => no random exploration)
-            action_index = agent.choose_action(state, valid_indices)
+            action_index = agent.choose_action(state, valid_indices, 0)
             dx, dy = test_game.moves[action_index]
             nx, ny = test_game.x + dx, test_game.y + dy
 
@@ -312,7 +331,12 @@ def main():
 
         print(f"Final test episode ended after {step_count} moves.")
         test_game.print_board()
+        print("Move stats:")
+        arr_twos_zeros = np.array(all_twos_and_zeros)
+        print("All twos and zeros:", arr_twos_zeros / arr_twos_zeros.sum())
 
+        arr_ones_exist = np.array(ones_exist)
+        print("Ones Exist:", arr_ones_exist / arr_ones_exist.sum())
         # C. Examine Q-Table
         # print("\n=== Q-Table Snapshot (Raw) ===")
         # print(agent.q_table)
@@ -396,6 +420,108 @@ def main():
         # Print final board
         print("Final Board (Brute Force):")
         game.print_board()
+
+    elif mode == '7':
+        print("=== MCTS Self-Play + NN Training ===")
+        n = int(input("Enter the board size (n x n): "))
+        num_obstacles = int(input("Enter number of obstacles: "))
+        ans_start = input("Randomize the knight's starting position each game? (y/n): ").strip().lower()
+        random_start_pos = (ans_start == 'y')
+        if not random_start_pos:
+            sx = int(input("Enter starting X position: "))
+            sy = int(input("Enter starting Y position: "))
+        else:
+            sx, sy = 0, 0
+
+        ans_obstacles = input("Place obstacles randomly EACH training game? (y/n): ").strip().lower()
+        random_each_game = (ans_obstacles == 'y')
+
+        num_games = int(input("How many self-play games to train on? ex(10000) "))
+        mcts_iters = int(input("MCTS iterations per move? ex(1000) "))
+        ep = int(input("Training epochs? ex(5) "))
+        lr = float(input("Learning rate? (e.g. 1e-3): "))
+        print_moves_ans = input("Print the board each move while training? (y/n): ").strip().lower()
+        print_moves = (print_moves_ans == 'y')
+
+        from SelfPlayAndTraining import run_mcts_selfplay_training
+        run_mcts_selfplay_training(
+            board_size = n,
+            num_obstacles = num_obstacles,
+            random_start = random_start_pos,
+            fixed_start = (sx, sy),
+            random_each_game = random_each_game,
+            num_games = num_games,
+            mcts_iterations = mcts_iters,
+            epochs = ep,
+            lr = lr,
+            print_each_move = print_moves
+        )
+        print("MCTS Self-Play + NN training complete!")
+
+    elif mode == '8':
+            print("\n=== Knight Tour [PUCT-based AI] ===")
+            # 1) Ask user for board parameters
+            n = int(input("Enter board size (n x n): "))
+            num_obstacles = int(input("Enter number of obstacles: "))
+            start_x = int(input("Enter starting X position: "))
+            start_y = int(input("Enter starting Y position: "))
+            show_debug_input = input("Show AI transparency (NN/MCTS/Warnsdorff/heatmaps)? (y/n): ").strip().lower()
+            show_debug = (show_debug_input == 'y')
+            log_csv_input = input("Log AI decisions to CSV file? (y/n): ").strip().lower()
+            log_to_csv = (log_csv_input == 'y')
+
+            # 2) Create the KnightGame
+            game = KnightGame(n, num_obstacles, start_x, start_y)
+
+            # 3) Load the neural net
+            from NeuralNetworkClass import KnightNetwork
+            net = KnightNetwork(board_size=n, in_channels=2)
+            net.load_weights("knight_network.pt")  # Make sure knight_network.pt is present
+
+            # 4) Create your PUCT-based AI
+            from PUCTPlay import KnightPUCTPlayer
+            puct_ai = KnightPUCTPlayer(network=net, c_puct=1.0, simulations=1000, show_debug=show_debug, log_to_csv=log_to_csv)
+
+            print("\nThe AI will move the knight until no valid moves remain.")
+            input("Press Enter to begin...")
+
+            while True:
+                # 5) Check if there are valid moves
+                valid_moves = []
+                for (dx, dy) in game.moves:
+                    nx = game.x + dx
+                    ny = game.y + dy
+                    if game.is_valid_move(nx, ny):
+                        valid_moves.append((nx, ny))
+
+                if not valid_moves:
+                    print("No more valid moves! Knight is stuck or board is filled.")
+                    break
+
+                # 6) Use the PUCT AI to pick a move
+                move = puct_ai.choose_move(game.clone())
+                if move is None:
+                    print("PUCT returned None (no moves?). Stopping.")
+                    break
+
+                # 7) Apply the move
+                if not game.is_valid_move(move[0], move[1]):
+                    print(f"PUCT picked invalid move {move} - stopping.")
+                    break
+
+                game.x, game.y = move
+                game.board[game.x][game.y] = game.step
+                game.step += 1
+
+                # Print the board so we can see the knight's progress
+                print(f"\nKnight just moved to: {move}   (Step={game.step-1})")
+                game.print_board()
+
+            # 8) End
+            print("\nFinal board:")
+            game.print_board()
+            print("PUCT-based knight tour ended.")
+            print(f"Squares visited: {game.step} / {(n*n)-num_obstacles}")
 
     else:
         print("Invalid mode selected. Exiting the game.")
