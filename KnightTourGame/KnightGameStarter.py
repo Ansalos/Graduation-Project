@@ -19,6 +19,8 @@ def main():
     print("6. Brute Force (Backtracking) Mode")
     print("7. MCTS Self-Play + Training")
     print("8. Play with Trained AlphaZero")
+    print("9. PUCT with No Neural Net (Logic Only)")
+
 
 
     
@@ -522,6 +524,61 @@ def main():
             game.print_board()
             print("PUCT-based knight tour ended.")
             print(f"Squares visited: {game.step} / {(n*n)-num_obstacles}")
+
+    elif mode == '9':
+        print("\n=== Knight Tour [PUCT with Logic Only] ===")
+        n = int(input("Enter board size (n x n): "))
+        num_obstacles = int(input("Enter number of obstacles: "))
+        start_x = int(input("Enter starting X position: "))
+        start_y = int(input("Enter starting Y position: "))
+        show_debug_input = input("Show logic details for each step? (y/n): ").strip().lower()
+        show_debug = (show_debug_input == 'y')
+
+        from RuleBasedPUCTPlayer import RuleBasedPUCTPlayer
+        from KnightTourGame import KnightGame
+
+        game = KnightGame(n, num_obstacles, start_x, start_y)
+        logic_ai = RuleBasedPUCTPlayer(c_puct=1.0, simulations=500, show_debug=show_debug)
+
+        print("\nThe logic-only AI will now play the Knight's Tour...")
+        input("Press Enter to begin...")
+
+        while True:
+            valid_moves = game.legal_moves()
+            if not valid_moves:
+                print("No more valid moves. Tour ended.")
+                break
+
+            move = logic_ai.choose_move(game.clone())
+            if move is None:
+                print("AI could not find a move. Tour ended.")
+                break
+
+            game.x, game.y = move
+            game.board[game.x][game.y] = game.step
+            game.step += 1
+
+            # 1. Print chosen move
+            print(f"\n[Step {game.step}] Knight moved to: {move}")
+
+            # 2. Run Warnsdorff's on the same board to compare
+            from WarnsdorffAlgo import WarnsdorffsAlgorithm
+            warn_copy = game.clone()
+            warn_algo = WarnsdorffsAlgorithm(warn_copy)
+            warn_algo.solve()
+            warn_move = (warn_algo.x, warn_algo.y)
+
+            # 3. Compare
+            print(f"   → Logic-PUCT chose:     {move}")
+            print(f"   → Warnsdorff would pick:{warn_move}")
+
+            # 4. Print board
+            game.print_board()
+
+
+        print("\nFinal board:")
+        game.print_board()
+        print(f"Logic-based PUCT Tour finished with {game.step} squares visited out of {n*n - num_obstacles}.")
 
     else:
         print("Invalid mode selected. Exiting the game.")

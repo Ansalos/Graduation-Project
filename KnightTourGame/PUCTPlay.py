@@ -64,26 +64,26 @@ class KnightPUCTPlayer:
                     writer.writerow([game.step, game.x, game.y, move[0], move[1], degree, round(child.Q, 5), round(child.prior, 5), child.N, round(score, 5), is_best])
 
         if self.show_debug:
-            print(f"\n📝 [Step {game.step}] Knight at {game.x, game.y}")
+            print(f"\n [Step {game.step}] Knight at {game.x, game.y}")
             print("Evaluated Moves:")
             for move, child in root.children.items():
                 degree = self._get_warnsdorff_degree(game, move)
                 score = child.Q + self.c_puct * child.prior * math.sqrt(root.N) / (1 + child.N)
                 print(f"  Move {move}: Degree={degree}, Q={child.Q:.3f}, P={child.prior:.3f}, N={child.N}, PUCT={score:.3f}")
 
-            print(f"\n🏆 Best Move Selected: {best_move}")
+            print(f"\n Best Move Selected: {best_move}")
 
             warn_game = game.clone()
             warn_algo = WarnsdorffsAlgorithm(warn_game)
             warn_algo.solve()
             warn_move = (warn_algo.x, warn_algo.y)
-            print(f"⚔️ Warnsdorff's move would be: {warn_move}")
+            print(f" Warnsdorff's move would be: {warn_move}")
 
             policy_dict = self._policy_to_dict(game, policy)
-            self.show_heatmap(policy_dict, game.n, "🧠 Policy Heatmap", knight_pos=(game.x, game.y), step=game.step, next_move=best_move)
+            self.show_heatmap(policy_dict, game.n, "Policy Heatmap", knight_pos=(game.x, game.y), step=game.step, next_move=best_move)
 
             visit_dict = {move: child.N for move, child in root.children.items()}
-            self.show_heatmap(visit_dict, game.n, "🔁 MCTS Visit Heatmap", knight_pos=(game.x, game.y), step=game.step, next_move=best_move)
+            self.show_heatmap(visit_dict, game.n, "MCTS Visit Heatmap", knight_pos=(game.x, game.y), step=game.step, next_move=best_move)
 
         return best_move
 
@@ -153,8 +153,6 @@ class KnightPUCTPlayer:
 
     def show_heatmap(self, values_dict, n, title, knight_pos=None, step=None, next_move=None):
         import matplotlib.pyplot as plt
-        import matplotlib.image as mpimg
-        from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 
         heat = np.zeros((n, n))
         for (x, y), v in values_dict.items():
@@ -164,13 +162,7 @@ class KnightPUCTPlayer:
         ax.imshow(heat, cmap='hot', interpolation='nearest')
 
         if knight_pos is not None:
-            try:
-                img = mpimg.imread("knight.png")
-                knight_icon = OffsetImage(img, zoom=0.1)
-                ab = AnnotationBbox(knight_icon, (knight_pos[1], knight_pos[0]), frameon=False)
-                ax.add_artist(ab)
-            except FileNotFoundError:
-                ax.scatter(knight_pos[1], knight_pos[0], c='blue', s=120, edgecolors='white', label='Knight Position')
+            ax.scatter(knight_pos[1], knight_pos[0], c='blue', s=120, edgecolors='white', label='Knight Position')
 
         if next_move is not None:
             ax.scatter(next_move[1], next_move[0], c='green', s=120, edgecolors='black', marker='*', label='Chosen Move')
