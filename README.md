@@ -61,10 +61,10 @@ The Knight’s Tour is a classic puzzle where a **knight** (as in chess) must vi
 ├── NeuralNetworkClass.py            # PyTorch-based neural network policy/value model
 ├── SelfPlayAndTraining.py           # Self-play training routine
 ├── WarnsdorffAlgo.py                # Warnsdorff's algorithm implementation
-└── puct_decisions.csv               # [Optional] CSV log generated during Mode 8 runs
+└── puct_decisions.csv               # CSV log generated during Mode 8 runs
 ── Interpretable Neural Networks דוח הצעה.pdf
 ── Interpretable Neural Networks for Tackling Alpha Report.pdf
-── README.md                                            # This file
+── README.md                         # This file
 ```
 
 ### Main Scripts
