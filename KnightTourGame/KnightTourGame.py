@@ -43,7 +43,7 @@ class KnightGame:
             print(" ".join(f"{col:2}" if isinstance(col, int) and
                            col >= 0 else (" X" if col == 'X' else " *")
                            for col in row))
-
+    
     def play(self):
         if self.board is None:
             return
@@ -62,3 +62,31 @@ class KnightGame:
                     print("Invalid move! Try again.")
             except ValueError:
                 print("Invalid input! Enter two integers.")
+
+    def clone(self):
+        import copy
+        new_game = KnightGame(self.n, self.num_obstacles, self.x, self.y)
+        new_game.board = copy.deepcopy(self.board)
+        new_game.step = self.step
+        
+        # If you track a status (ONGOING, STUCK, COMPLETE), copy that too:
+        # new_game.status = self.status
+        
+        return new_game
+
+    def legal_moves(self):
+        moves = []
+        for dx, dy in self.moves:
+            nx = self.x + dx
+            ny = self.y + dy
+            # For example, consider a cell 'valid' if it hasn't been visited or isn't 'X'
+            if 0 <= nx < self.n and 0 <= ny < self.n and self.board[nx][ny] == -1:
+                moves.append((nx, ny))
+        return moves
+    
+    def make_move(self, move):
+        nx, ny = move
+        self.x = nx
+        self.y = ny
+        self.board[nx][ny] = self.step
+        self.step += 1
