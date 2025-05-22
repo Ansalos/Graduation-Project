@@ -20,11 +20,12 @@ def main():
     print("7. MCTS Self-Play + Training")
     print("8. Play with Trained AlphaZero")
     print("9. PUCT with No Neural Net (Logic Only)")
+    print("10. Elo Match: Warnsdorff vs PUCT Logic-Only")    
+    print("11. Play with Decision Tree (Mimics Logic-based AI)")
+    print("12. Elo Match: Decision Tree vs Warnsdorff Only")
+    print("13. Elo Arena: Warnsdorff vs PUCT Logic vs Decision Tree")
 
 
-
-    
-    
 
     mode = input("Enter the mode number: ")
 
@@ -535,19 +536,36 @@ def main():
         show_debug = (show_debug_input == 'y')
 
         from RuleBasedPUCTPlayer import RuleBasedPUCTPlayer
-        from KnightTourGame import KnightGame
 
         game = KnightGame(n, num_obstacles, start_x, start_y)
         logic_ai = RuleBasedPUCTPlayer(c_puct=1.0, simulations=500, show_debug=show_debug)
 
         print("\nThe logic-only AI will now play the Knight's Tour...")
         input("Press Enter to begin...")
+        
+        def get_warnsdorff_next_move(game):
+            legal = game.legal_moves()
+            best_deg = float('inf')
+            best_move = None
+            for nx, ny in legal:
+                onward = 0
+                for dx, dy in game.moves:
+                    tx, ty = nx + dx, ny + dy
+                    if 0 <= tx < game.n and 0 <= ty < game.n and game.board[tx][ty] == -1:
+                        onward += 1
+                if onward < best_deg:
+                    best_deg = onward
+                    best_move = (nx, ny)
+            return best_move
 
         while True:
             valid_moves = game.legal_moves()
             if not valid_moves:
                 print("No more valid moves. Tour ended.")
                 break
+
+            # Clone the game BEFORE applying the move
+            warnsdorff_game = game.clone()
 
             move = logic_ai.choose_move(game.clone())
             if move is None:
@@ -561,16 +579,15 @@ def main():
             # 1. Print chosen move
             print(f"\n[Step {game.step}] Knight moved to: {move}")
 
-            # 2. Run Warnsdorff's on the same board to compare
-            from WarnsdorffAlgo import WarnsdorffsAlgorithm
-            warn_copy = game.clone()
-            warn_algo = WarnsdorffsAlgorithm(warn_copy)
-            warn_algo.solve()
-            warn_move = (warn_algo.x, warn_algo.y)
+            # 2. Run Warnsdorff's heuristic move
+            warn_move = get_warnsdorff_next_move(warnsdorff_game)
+            if warn_move:
+                print(f"   → Warnsdorff would pick: {warn_move}")
+            else:
+                print("   → Warnsdorff has no valid moves.")
 
             # 3. Compare
             print(f"   → Logic-PUCT chose:     {move}")
-            print(f"   → Warnsdorff would pick:{warn_move}")
 
             # 4. Print board
             game.print_board()
@@ -579,6 +596,347 @@ def main():
         print("\nFinal board:")
         game.print_board()
         print(f"Logic-based PUCT Tour finished with {game.step} squares visited out of {n*n - num_obstacles}.")
+    
+    elif mode == '10':
+        print("\n=== Mode 10: Warnsdorff vs PUCT Logic-Only (Elo Rating Match) ===")
+        n_games = int(input("Enter number of games per agent: "))
+        board_size = int(input("Enter board size: "))
+        num_obstacles = int(input("Enter number of obstacles: "))
+        fairness = input("Should both agents play on the same board with same start? (y/n): ").strip().lower()
+        show_boards = input("Show final boards for each game? (y/n): ").strip().lower()
+        k_factor = 32
+
+        from RuleBasedPUCTPlayer import RuleBasedPUCTPlayer
+
+        rating_warn = 1200
+        rating_logic = 1200
+
+        def run_game_on(game, agent_type):
+            if agent_type == 'warnsdorff':
+                algo = WarnsdorffsAlgorithm(game)
+                result = algo.solve()
+                score = sum(isinstance(cell, int) and cell >= 0 for row in result for cell in row)
+            elif agent_type == 'logic':
+                logic_ai = RuleBasedPUCTPlayer(c_puct=1.0, simulations=300, show_debug=False)
+                while True:
+                    valid = game.legal_moves()
+                    if not valid:
+                        break
+                    move = logic_ai.choose_move(game.clone())
+                    if move is None:
+                        break
+                    game.x, game.y = move
+                    game.board[game.x][game.y] = game.step
+                    game.step += 1
+                score = sum(isinstance(cell, int) and cell >= 0 for row in game.board for cell in row)
+            return score, game
+
+        for i in range(n_games):
+            print(f"\nGame {i+1}:")
+
+            if fairness == 'y':
+                sx = random.randint(0, board_size - 1)
+                sy = random.randint(0, board_size - 1)
+                base_game = KnightGame(board_size, num_obstacles, sx, sy)
+                game_for_warn = copy.deepcopy(base_game)
+                game_for_logic = copy.deepcopy(base_game)
+            else:
+                sx1, sy1 = random.randint(0, board_size - 1), random.randint(0, board_size - 1)
+                sx2, sy2 = random.randint(0, board_size - 1), random.randint(0, board_size - 1)
+                game_for_warn = KnightGame(board_size, num_obstacles, sx1, sy1)
+                game_for_logic = KnightGame(board_size, num_obstacles, sx2, sy2)
+
+            score_warn, final_warn = run_game_on(game_for_warn, 'warnsdorff')
+            score_logic, final_logic = run_game_on(game_for_logic, 'logic')
+
+            print(f"  Warnsdorff visited: {score_warn}")
+            print(f"  PUCT Logic-only visited: {score_logic}")
+
+            if show_boards == 'y':
+                print("\n  Warnsdorff Final Board:")
+                final_warn.print_board()
+                print("\n  PUCT Logic-only Final Board:")
+                final_logic.print_board()
+
+            # Elo rating update
+            if score_warn > score_logic:
+                s_warn, s_logic = 1, 0
+            elif score_warn < score_logic:
+                s_warn, s_logic = 0, 1
+            else:
+                s_warn = s_logic = 0.5
+
+            expected_warn = 1 / (1 + 10 ** ((rating_logic - rating_warn) / 400))
+            expected_logic = 1 / (1 + 10 ** ((rating_warn - rating_logic) / 400))
+
+            rating_warn += k_factor * (s_warn - expected_warn)
+            rating_logic += k_factor * (s_logic - expected_logic)
+
+            print(f"  Updated Ratings → Warnsdorff: {round(rating_warn, 2)}, LogicPUCT: {round(rating_logic, 2)}")
+
+        print("\n=== Final Ratings ===")
+        print(f"  Warnsdorff: {round(rating_warn, 2)}")
+        print(f"  PUCT Logic-Only: {round(rating_logic, 2)}")
+
+    elif mode == '11':
+        print("\n=== Knight Tour [Decision Tree-Based AI] ===")
+
+        import pandas as pd
+        import joblib
+        from sklearn.tree import DecisionTreeClassifier
+
+        # === STEP 1: Train the Decision Tree on puct_decisions.csv ===
+        try:
+            df = pd.read_csv("puct_decisions.csv")
+            df.columns = df.columns.str.strip()
+
+            features = ["degree", "Q", "P", "N", "PUCT"]
+            for feature in features:
+                if feature not in df.columns:
+                    raise KeyError(f"Missing expected column: {feature}")
+
+            X = df[features]
+            y = df["is_best"]
+            clf = DecisionTreeClassifier(max_depth=4, random_state=42)
+            clf.fit(X, y)
+            joblib.dump(clf, "decision_tree_model.pkl")
+            print("Trained Decision Tree saved as decision_tree_model.pkl")
+            from sklearn.tree import export_text
+            tree_rules = export_text(clf, feature_names=["degree", "Q", "P", "N", "PUCT"])
+            print("\n Decision Tree Rules:\n")
+            print(tree_rules)
+
+        except Exception as e:
+            print("Failed to train decision tree:", e)
+            return
+
+        # === STEP 2: Setup game ===
+        n = int(input("Enter board size (n x n): "))
+        num_obstacles = int(input("Enter number of obstacles: "))
+        sx = int(input("Enter starting X position: "))
+        sy = int(input("Enter starting Y position: "))
+
+        from DecisionTreePlayer import DecisionTreePlayer
+        game = KnightGame(n, num_obstacles, sx, sy)
+        tree_ai = DecisionTreePlayer("decision_tree_model.pkl")
+
+        # === STEP 3: Play using the decision tree ===
+        while True:
+            legal = game.legal_moves()
+            if not legal:
+                print("No valid moves left. Game Over.")
+                break
+
+            move = tree_ai.choose_move(game)
+            if not move:
+                print("Decision Tree returned no move. Stopping.")
+                break
+
+            game.x, game.y = move
+            game.board[game.x][game.y] = game.step
+            game.step += 1
+            print(f"\n[Step {game.step-1}] Knight moved to: {move}")
+            # game.print_board()
+
+        print("\nFinal board:")
+        game.print_board()
+        print(f"Squares visited: {game.step} / {(n * n) - num_obstacles}")
+
+    elif mode == '12':
+        print("\n=== Mode 12: Decision Tree vs Warnsdorff (Elo Match) ===")
+        n_games = int(input("Enter number of games: "))
+        board_size = int(input("Enter board size: "))
+        num_obstacles = int(input("Enter number of obstacles: "))
+        fairness = input("Should both agents play the same board and start? (y/n): ").strip().lower()
+        show_boards = input("Show final boards? (y/n): ").strip().lower()
+        k_factor = 32
+
+        from DecisionTreePlayer import DecisionTreePlayer
+
+        rating_warn = 1200
+        rating_tree = 1200
+
+        def run_warnsdorff(game):
+            algo = WarnsdorffsAlgorithm(game)
+            algo.solve()
+            return game
+
+        def run_tree_ai(game):
+            tree_ai = DecisionTreePlayer("decision_tree_model.pkl")
+            while True:
+                valid = game.legal_moves()
+                if not valid:
+                    break
+                move = tree_ai.choose_move(game.clone())
+                if move is None:
+                    break
+                game.x, game.y = move
+                game.board[game.x][game.y] = game.step
+                game.step += 1
+            return game
+
+        def count_score(game):
+            return sum(isinstance(cell, int) and cell >= 0 for row in game.board for cell in row)
+
+        def update_elo(r1, r2, s1, s2):
+            e1 = 1 / (1 + 10 ** ((r2 - r1) / 400))
+            e2 = 1 / (1 + 10 ** ((r1 - r2) / 400))
+            return (
+                r1 + k_factor * (s1 - e1),
+                r2 + k_factor * (s2 - e2)
+            )
+
+        for i in range(n_games):
+            print(f"\n Game {i+1}/{n_games}")
+            if fairness == 'y':
+                sx = random.randint(0, board_size - 1)
+                sy = random.randint(0, board_size - 1)
+                base_game = KnightGame(board_size, num_obstacles, sx, sy)
+                game_warn = copy.deepcopy(base_game)
+                game_tree = copy.deepcopy(base_game)
+            else:
+                game_warn = KnightGame(board_size, num_obstacles, random.randint(0, board_size - 1), random.randint(0, board_size - 1))
+                game_tree = KnightGame(board_size, num_obstacles, random.randint(0, board_size - 1), random.randint(0, board_size - 1))
+
+            game_warn = run_warnsdorff(game_warn)
+            game_tree = run_tree_ai(game_tree)
+
+            score_warn = count_score(game_warn)
+            score_tree = count_score(game_tree)
+
+            print(f"  Warnsdorff visited: {score_warn}")
+            print(f"  Decision Tree AI visited: {score_tree}")
+
+            if show_boards == 'y':
+                print("\n  Warnsdorff Final Board:")
+                game_warn.print_board()
+                print("\n  Decision Tree AI Final Board:")
+                game_tree.print_board()
+
+            if score_warn > score_tree:
+                s_warn, s_tree = 1, 0
+            elif score_warn < score_tree:
+                s_warn, s_tree = 0, 1
+            else:
+                s_warn = s_tree = 0.5
+
+            rating_warn, rating_tree = update_elo(rating_warn, rating_tree, s_warn, s_tree)
+
+            print(f" Updated Elo → Warnsdorff: {round(rating_warn, 2)} | Tree AI: {round(rating_tree, 2)}")
+
+        print("\n=== Final Elo Ratings ===")
+        print(f"Warnsdorff: {round(rating_warn, 2)}")
+        print(f"Decision Tree AI: {round(rating_tree, 2)}")
+
+    elif mode == '13':
+        print("\n=== Mode 10: Elo Match – Warnsdorff vs PUCT Logic-Only vs Decision Tree ===")
+        n_games = int(input("Enter number of games per agent: "))
+        board_size = int(input("Enter board size: "))
+        num_obstacles = int(input("Enter number of obstacles: "))
+        fairness = input("Should all agents play on the same board with same start? (y/n): ").strip().lower()
+        show_boards = input("Show final boards for each game? (y/n): ").strip().lower()
+
+        from RuleBasedPUCTPlayer import RuleBasedPUCTPlayer
+        from DecisionTreePlayer import DecisionTreePlayer
+    
+        tree_player = DecisionTreePlayer("decision_tree_model.pkl")
+
+        k_factor = 32
+        ratings = {
+            "warnsdorff": 1200,
+            "logic": 1200,
+            "tree": 1200
+        }
+
+        def run_game(agent_type, game):
+            game = copy.deepcopy(game)
+            if agent_type == 'warnsdorff':
+                algo = WarnsdorffsAlgorithm(game)
+                result = algo.solve()
+                score = sum(isinstance(cell, int) and cell >= 0 for row in result for cell in row)
+            elif agent_type == 'logic':
+                logic_ai = RuleBasedPUCTPlayer(c_puct=1.0, simulations=300, show_debug=False)
+                while True:
+                    valid = game.legal_moves()
+                    if not valid:
+                        break
+                    move = logic_ai.choose_move(game.clone())
+                    if move is None:
+                        break
+                    game.x, game.y = move
+                    game.board[game.x][game.y] = game.step
+                    game.step += 1
+                score = sum(isinstance(cell, int) and cell >= 0 for row in game.board for cell in row)
+            elif agent_type == 'tree':
+                while True:
+                    legal = game.legal_moves()
+                    if not legal:
+                        break
+                    move = tree_player.choose_move(game)
+                    if not move:
+                        break
+                    game.x, game.y = move
+                    game.board[game.x][game.y] = game.step
+                    game.step += 1
+                score = sum(isinstance(cell, int) and cell >= 0 for row in game.board for cell in row)
+            return score, game
+
+        agents = ['warnsdorff', 'logic', 'tree']
+
+        for i in range(n_games):
+            print(f"\n Game {i+1} of {n_games}")
+
+            if fairness == 'y':
+                sx = random.randint(0, board_size - 1)
+                sy = random.randint(0, board_size - 1)
+                base_game = KnightGame(board_size, num_obstacles, sx, sy)
+                boards = {agent: copy.deepcopy(base_game) for agent in agents}
+            else:
+                boards = {
+                    agent: KnightGame(board_size, num_obstacles,
+                                    random.randint(0, board_size - 1),
+                                    random.randint(0, board_size - 1))
+                    for agent in agents
+                }
+
+            scores = {}
+            for agent in agents:
+                score, board = run_game(agent, boards[agent])
+                scores[agent] = score
+                if show_boards == 'y':
+                    print(f"\n {agent.upper()} Final Board (Visited: {score}):")
+                    board.print_board()
+
+            print("\nScores:")
+            for a in agents:
+                print(f"  {a.capitalize()}: {scores[a]}")
+
+            # Pairwise Elo updates
+            for a1 in agents:
+                for a2 in agents:
+                    if a1 == a2:
+                        continue
+                    s1 = scores[a1]
+                    s2 = scores[a2]
+                    r1 = ratings[a1]
+                    r2 = ratings[a2]
+
+                    if s1 == s2:
+                        actual1, actual2 = 0.5, 0.5
+                    elif s1 > s2:
+                        actual1, actual2 = 1, 0
+                    else:
+                        actual1, actual2 = 0, 1
+
+                    expected1 = 1 / (1 + 10 ** ((r2 - r1) / 400))
+                    expected2 = 1 / (1 + 10 ** ((r1 - r2) / 400))
+
+                    ratings[a1] += k_factor * (actual1 - expected1)
+                    ratings[a2] += k_factor * (actual2 - expected2)
+
+        print("\n Final Elo Ratings:")
+        for agent in agents:
+            print(f"  {agent.capitalize()}: {round(ratings[agent], 2)}")
 
     else:
         print("Invalid mode selected. Exiting the game.")

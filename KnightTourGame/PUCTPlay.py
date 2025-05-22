@@ -73,11 +73,23 @@ class KnightPUCTPlayer:
 
             print(f"\n Best Move Selected: {best_move}")
 
-            warn_game = game.clone()
-            warn_algo = WarnsdorffsAlgorithm(warn_game)
-            warn_algo.solve()
-            warn_move = (warn_algo.x, warn_algo.y)
-            print(f" Warnsdorff's move would be: {warn_move}")
+            warn_moves = []
+            for dx, dy in game.moves:
+                nx, ny = game.x + dx, game.y + dy
+                if game.is_valid_move(nx, ny):
+                    degree = sum(
+                        1 for ddx, ddy in game.moves
+                        if 0 <= nx + ddx < game.n and 0 <= ny + ddy < game.n and game.board[nx + ddx][ny + ddy] == -1
+                    )
+                    warn_moves.append(((nx, ny), degree))
+
+            if warn_moves:
+                warn_moves.sort(key=lambda x: x[1])  # sort by degree
+                warn_move = warn_moves[0][0]
+                print(f" Warnsdorff's move would be: {warn_move}")
+            else:
+                print(" Warnsdorff's has no valid moves.")
+
 
             policy_dict = self._policy_to_dict(game, policy)
             self.show_heatmap(policy_dict, game.n, "Policy Heatmap", knight_pos=(game.x, game.y), step=game.step, next_move=best_move)
