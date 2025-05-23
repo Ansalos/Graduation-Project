@@ -538,7 +538,12 @@ def main():
         from RuleBasedPUCTPlayer import RuleBasedPUCTPlayer
 
         game = KnightGame(n, num_obstacles, start_x, start_y)
-        logic_ai = RuleBasedPUCTPlayer(c_puct=1.0, simulations=500, show_debug=show_debug)
+
+        def ask_csv_logging():
+            return input("Save AI decisions to CSV file? (y/n): ").strip().lower() == 'y'
+
+        log_to_csv = ask_csv_logging()
+        logic_ai = RuleBasedPUCTPlayer(c_puct=1.0, simulations=500, show_debug=show_debug, log_to_csv=log_to_csv)
 
         print("\nThe logic-only AI will now play the Knight's Tour...")
         input("Press Enter to begin...")
@@ -685,9 +690,9 @@ def main():
         import joblib
         from sklearn.tree import DecisionTreeClassifier
 
-        # === STEP 1: Train the Decision Tree on puct_decisions.csv ===
+        # === STEP 1: Train the Decision Tree ===
         try:
-            df = pd.read_csv("puct_decisions.csv")
+            df = pd.read_csv("puct_logic_only.csv") # pick which csv file to make DecisionTree puct_decisions.csv/ puct_logic_only.csv
             df.columns = df.columns.str.strip()
 
             features = ["degree", "Q", "P", "N", "PUCT"]
@@ -719,6 +724,7 @@ def main():
         from DecisionTreePlayer import DecisionTreePlayer
         game = KnightGame(n, num_obstacles, sx, sy)
         tree_ai = DecisionTreePlayer("decision_tree_model.pkl")
+
 
         # === STEP 3: Play using the decision tree ===
         while True:
