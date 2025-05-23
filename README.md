@@ -77,6 +77,7 @@ The Knight’s Tour is a classic puzzle where a **knight** (as in chess) must vi
 └── RuleBasedPUCTPlayer.py           # Mode 9: Rule-based heuristic logic without neural nets (inspired by PUCT)
 ── knight_network.pt                 # Trained (10x10 board,10000 games) for PUCT agent (Mode 8)
 ── puct_decisions.csv                # CSV log generated during Mode 8 runs
+── puct_logic_only.csv               # CSV log generated during Mode 9 runs
 ── decision_tree_model.pkl           # Scikit-learn model for Mode 11 Decision Tree AI
 ── Interpretable Neural Networks דוח הצעה.pdf
 ── Interpretable Neural Networks for Tackling Alpha Report.pdf
@@ -111,7 +112,7 @@ The Knight’s Tour is a classic puzzle where a **knight** (as in chess) must vi
    - Automates the self-play reinforcement learning process to train the network.
 
 9. **Analyze_Decisions.py**  
-   - Script for loading `puct_decisions.csv` and extracting decision rules using decision trees.
+   - Script for loading `puct_decisions.csv` or `puct_logic_only.csv` and extracting decision rules using decision trees.
 
 10. **RuleBasedPUCTPlayer.py**  
     - Implements **Mode 9**: A lightweight, symbolic player that mimics patterns from PUCT simulations using logic rules based on features like Q-value, visit count, prior, and move degree.  
@@ -218,7 +219,8 @@ This is ideal if you want to **manually** practice or demonstrate the Knight’s
 
 - Uses **symbolic logic rules** inspired by PUCT simulations (Mode 8), based on features like Q-value, visit count, prior probability, and move degree.  
 - No neural network or MCTS needed – runs purely on handcrafted rules derived from analysis of high-quality moves.  
-- Ideal for **fast and explainable** knight movement simulations.  
+- Ideal for **fast and explainable** knight movement simulations.
+- Optionally logs this data to a CSV for interpretability.  
 - Lightweight and portable – can run without PyTorch or complex dependencies.  
 - Great for demonstrating how interpretable, rule-driven logic can replicate learned strategies with near-human transparency.  
 - Often used as a baseline for comparison against neural or data-driven methods.  
