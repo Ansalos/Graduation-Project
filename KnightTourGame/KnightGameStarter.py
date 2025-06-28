@@ -528,26 +528,27 @@ def main():
 
     elif mode == '9':
         print("\n=== Knight Tour [PUCT with Logic Only] ===")
+
+        num_games = int(input("Enter number of games to play: "))
         n = int(input("Enter board size (n x n): "))
         num_obstacles = int(input("Enter number of obstacles: "))
-        start_x = int(input("Enter starting X position: "))
-        start_y = int(input("Enter starting Y position: "))
+
+        manual_start = input("Set starting position manually? (y/n): ").strip().lower() == 'y'
+        if manual_start:
+            start_x = int(input("Enter starting X position: "))
+            start_y = int(input("Enter starting Y position: "))
+
         show_debug_input = input("Show logic details for each step? (y/n): ").strip().lower()
         show_debug = (show_debug_input == 'y')
 
         from RuleBasedPUCTPlayer import RuleBasedPUCTPlayer
 
-        game = KnightGame(n, num_obstacles, start_x, start_y)
-
         def ask_csv_logging():
             return input("Save AI decisions to CSV file? (y/n): ").strip().lower() == 'y'
 
         log_to_csv = ask_csv_logging()
-        logic_ai = RuleBasedPUCTPlayer(c_puct=1.0, simulations=500, show_debug=show_debug, log_to_csv=log_to_csv)
+        logic_ai = RuleBasedPUCTPlayer(c_puct=1.0, simulations=1000, show_debug=show_debug, log_to_csv=log_to_csv)
 
-        print("\nThe logic-only AI will now play the Knight's Tour...")
-        input("Press Enter to begin...")
-        
         def get_warnsdorff_next_move(game):
             legal = game.legal_moves()
             best_deg = float('inf')
@@ -563,45 +564,53 @@ def main():
                     best_move = (nx, ny)
             return best_move
 
-        while True:
-            valid_moves = game.legal_moves()
-            if not valid_moves:
-                print("No more valid moves. Tour ended.")
-                break
+        for game_num in range(1, num_games + 1):
+            print(f"\n--- Game {game_num} ---")
 
-            # Clone the game BEFORE applying the move
-            warnsdorff_game = game.clone()
-
-            move = logic_ai.choose_move(game.clone())
-            if move is None:
-                print("AI could not find a move. Tour ended.")
-                break
-
-            game.x, game.y = move
-            game.board[game.x][game.y] = game.step
-            game.step += 1
-
-            # 1. Print chosen move
-            print(f"\n[Step {game.step}] Knight moved to: {move}")
-
-            # 2. Run Warnsdorff's heuristic move
-            warn_move = get_warnsdorff_next_move(warnsdorff_game)
-            if warn_move:
-                print(f"   → Warnsdorff would pick: {warn_move}")
+            if manual_start:
+                sx, sy = start_x, start_y
             else:
-                print("   → Warnsdorff has no valid moves.")
+                while True:
+                    sx = random.randint(0, n - 1)
+                    sy = random.randint(0, n - 1)
+                    if (sx, sy) not in [(i, j) for i in range(n) for j in range(n)][:num_obstacles]:
+                        break
 
-            # 3. Compare
-            print(f"   → Logic-PUCT chose:     {move}")
+            game = KnightGame(n, num_obstacles, sx, sy)
 
-            # 4. Print board
+            print("\nThe logic-only AI will now play the Knight's Tour...")
+            while True:
+                valid_moves = game.legal_moves()
+                if not valid_moves:
+                    print("No more valid moves. Tour ended.")
+                    break
+
+                warnsdorff_game = game.clone()
+
+                move = logic_ai.choose_move(game.clone())
+                if move is None:
+                    print("AI could not find a move. Tour ended.")
+                    break
+
+                game.x, game.y = move
+                game.board[game.x][game.y] = game.step
+                game.step += 1
+
+                print(f"\n[Step {game.step}] Knight moved to: {move}")
+
+                warn_move = get_warnsdorff_next_move(warnsdorff_game)
+                if warn_move:
+                    print(f"   → Warnsdorff would pick: {warn_move}")
+                else:
+                    print("   → Warnsdorff has no valid moves.")
+
+                print(f"   → Logic-PUCT chose:     {move}")
+                game.print_board()
+
+            print("\nFinal board:")
             game.print_board()
+            print(f"Logic-based PUCT Tour finished with {game.step} squares visited out of {n * n - num_obstacles}.")
 
-
-        print("\nFinal board:")
-        game.print_board()
-        print(f"Logic-based PUCT Tour finished with {game.step} squares visited out of {n*n - num_obstacles}.")
-    
     elif mode == '10':
         print("\n=== Mode 10: Warnsdorff vs PUCT Logic-Only (Elo Rating Match) ===")
         n_games = int(input("Enter number of games per agent: "))
@@ -622,7 +631,7 @@ def main():
                 result = algo.solve()
                 score = sum(isinstance(cell, int) and cell >= 0 for row in result for cell in row)
             elif agent_type == 'logic':
-                logic_ai = RuleBasedPUCTPlayer(c_puct=1.0, simulations=300, show_debug=False)
+                logic_ai = RuleBasedPUCTPlayer(c_puct=1.0, simulations=1000, show_debug=False)
                 while True:
                     valid = game.legal_moves()
                     if not valid:
@@ -861,7 +870,7 @@ def main():
                 result = algo.solve()
                 score = sum(isinstance(cell, int) and cell >= 0 for row in result for cell in row)
             elif agent_type == 'logic':
-                logic_ai = RuleBasedPUCTPlayer(c_puct=1.0, simulations=300, show_debug=False)
+                logic_ai = RuleBasedPUCTPlayer(c_puct=1.0, simulations=1000, show_debug=False)
                 while True:
                     valid = game.legal_moves()
                     if not valid:
