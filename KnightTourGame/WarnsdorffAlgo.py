@@ -13,22 +13,47 @@ class WarnsdorffsAlgorithm:
         )
 
     def solve(self):
-        for step in range(1, self.game.n * self.game.n - self.game.num_obstacles):
-            self.max_path_length = step  
+        total_free = self.game.n * self.game.n - self.game.num_obstacles
+
+        for step in range(1, total_free):          # same loop range as before
+            self.max_path_length = step
             min_degree = float('inf')
             next_move = None
 
-            for move in self.moves:
-                nx, ny = self.x + move[0], self.y + move[1]
-                if self.is_valid_move(nx, ny):
-                    degree = self.get_degree(nx, ny)
-                    if degree < min_degree:
-                        min_degree = degree
-                        next_move = (nx, ny)
+            for dx, dy in self.moves:
+                nx, ny = self.x + dx, self.y + dy
+
+                # ────────────────────────────────
+                # Accept the move if either:
+                #  (a) it passes the usual validity check, or
+                #  (b) it is the *very last* square still unvisited
+                #      (degree-0 squares allowed only on the final step)
+                # ────────────────────────────────
+                usual_ok   = self.is_valid_move(nx, ny)
+                last_step  = (step == total_free - 1)
+                empty_here = (
+                    0 <= nx < self.game.n and
+                    0 <= ny < self.game.n and
+                    self.board[nx][ny] == -1
+                )
+
+                if not (usual_ok or (last_step and empty_here)):
+                    continue
+
+                degree = self.get_degree(nx, ny)
+
+                # exclude early dead-ends (degree 0) unless it’s the last step
+                if degree == 0 and not last_step:
+                    continue
+
+                if degree < min_degree:
+                    min_degree = degree
+                    next_move  = (nx, ny)
 
             if not next_move:
-                return self.board
+                return self.board          # stuck early → return board as before
 
+            # make the move
             self.x, self.y = next_move
             self.board[self.x][self.y] = step
 

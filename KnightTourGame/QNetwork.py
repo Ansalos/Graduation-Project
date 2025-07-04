@@ -23,14 +23,41 @@ class QLearningAgent:
         # Initialize Q-table with zeros
         self.q_table = np.zeros((state_size, action_size))
 
-    def get_state(self, x, y, n):
-        """
-        Convert a 2D board coordinate (x, y) into a single integer state index.
-        For instance, row-major indexing: state = x * n + y.
-        """
-        return x * n + y
+    def get_state(self, game):
+        # We want to encode the number of moves from each target square.
+        # To have a manageable number of state, we have to dicretize aggressively.
+        # Blocked or 0 steps --> index 0
+        # 1 available move --> index 1
+        # 2 or more available moves --> index 2.
+        board = game.board
+        n = game.n
+        x = game.x
+        y = game.y
+        moves = game.moves
+        # First, we encode the state as an array of 8 
+        encode_arr = [0 for _ in range(8)]
+        for i in range(8):
+            move = moves[i]
+            cur_x = x+move[0]
+            cur_y = y+move[1]
+            if 0<=cur_x<n and 0<=cur_y<n and board[cur_x][cur_y] == -1:
+                for next_move in moves:
+                    tmp_x = cur_x+next_move[0]
+                    tmp_y = cur_y+next_move[1]
+                    if 0<=tmp_x<n and 0<=tmp_y<n and board[tmp_x][tmp_y] == -1:
+                        encode_arr[i] += 1
+                        if encode_arr[i] == 2:
+                            break
+        ind = 0
+        for i in reversed(range(8)):
+            ind = ind*3 + encode_arr[i]
 
-    def choose_action(self, state, valid_action_indices):
+        return ind, encode_arr
+
+
+        
+
+    def choose_action(self, state, valid_action_indices, epsilon):
         """
         Choose an action (by index) based on an epsilon-greedy policy.
 
@@ -39,7 +66,7 @@ class QLearningAgent:
         :return: an index corresponding to the chosen action
         """
         # Exploration
-        if random.random() < self.epsilon:
+        if random.random() < epsilon:
             return random.choice(valid_action_indices)
         # Exploitation
         else:
@@ -65,5 +92,4 @@ class QLearningAgent:
             max_next_q = max(self.q_table[next_state, a] for a in next_valid_action_indices)
 
         # Standard Q-Learning formula
-        old_value = self.q_table[state, action_index]
-        self.q_table[state, action_index] = old_value + self.alpha * (reward + self.gamma * max_next_q - old_value)
+        self.q_table[state, action_index] += self.alpha * (reward + self.gamma * max_next_q - self.q_table[state, action_index])
